@@ -26,10 +26,9 @@ def selec_model_ola_erro(window_test_inst, past_data, ensemble, k, lags_acf):
     k_patterns_y = y_data[indices_patterns_l[0:k]]
   
     erros_modelos = []
-    for i in range(0, len(ensemble['modelos'])):
-        model = ensemble['modelos'][i]
-        lags = ensemble['tam_lags'][i]
-        current_patterns = k_patterns_x[:,0:lags+1]
+    for i in range(0, len(ensemble)):
+        model = ensemble[i]
+        current_patterns = k_patterns_x
         
         
         prev = model.predict(current_patterns)
@@ -104,7 +103,7 @@ def ds(instance, train_lags, ensemble, k, lags_acf, n = 1):
     param: 
         instance: time windows in out-of-sample
         train_lags: sample of time windows in training sample
-        ensemble: dict with m models
+        ensemble: list with m models
         k: size of the region of competence
         lags_acf: list of lags selected
         n: number of models to select

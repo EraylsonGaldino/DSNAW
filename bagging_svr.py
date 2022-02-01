@@ -1,10 +1,6 @@
 import pandas as pd
 import numpy as np
 
-"""
-separa val2 p selecionar o K
-
-"""
 
 
 import pickle
@@ -18,9 +14,9 @@ def train_svr(x_train, y_train, x_val, y_val):
     
     melhor_mse = np.Inf 
     kernel = ['rbf']
-    gamma = [0.5]#, 0.1, 10], 20, 30, 40, 50,60,70, 80, 90, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000]
-    eps = [1]#, 0.1, 0.01, 0.001], 0.0001, 0.00001, 0.000001]
-    C = [0.1]#, 1, 100, 1000, 10000]
+    gamma = [0.5, 0.1, 10]#, 20, 30, 40, 50,60,70, 80, 90, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000]
+    eps = [1, 0.1, 0.01, 0.001]#, 0.0001, 0.00001, 0.000001]
+    C = [0.1, 1, 100, 1000, 10000]#
     hyper_param = list(itertools.product(kernel, gamma, eps, C))
     
     for k, g, e, c in hyper_param:
@@ -89,46 +85,71 @@ def bagging(qtd_modelos, X_train, y_train, lags_acf):
    
     return ensemble
 
-def split_train_val_test(serie, p_tr, p_v1, p_v2):
-    tam_serie =  len(serie)
+def split_train_val_test(series, p_tr, perc_val = 0):
+    tam_serie =  len(series)
     #print(tam_serie)
-    tam_train = round(p_tr * tam_serie)
-    tam_val1 = round(p_v1 * tam_serie)
-    tam_val2 = round(p_v2 * tam_serie)
-    #tam_test = tam_serie - (tam_train +  tam_val1 + tam_val2 )
+    train_size = int(np.ceil(p_tr * tam_serie))
+    
+    if perc_val > 0:
+        
+        val_size = int(np.ceil(len(serie) *perc_val))
+        
+        
+        
+        x_train = series[0:train_size]
+        x_val = series[train_size:train_size+val_size]        
+        x_test = series[(train_size+val_size):]
+        
+        return x_train, x_test, x_val
+        
+    else:
+        
+                
+        x_train = series[0:train_size]
+        x_test = series[train_size:]
+        
+
+        return x_train, x_test
+
+def desempenho_media_pool(ensemble, x_test, y_test):
+    previsao = []
+    for janela in x_test:
+        previsoes = []
+        for modelo in ensemble:
+            prev = modelo.predict(janela.reshape(1, -1))
+            previsoes.append(prev)
+        previsao.append(np.mean(previsoes))
+
+    print(MSE(y_test, previsao))
+    
 
 
-
-    return  serie[0:tam_train] , serie[tam_train:tam_train+tam_val1] , serie[tam_train+tam_val1:tam_train+tam_val1+tam_val2] , serie[tam_train+tam_val1+tam_val2: ]
-
-
-serie_name = 'star'
+serie_name = 'APPLE'
 caminho = f'https://raw.githubusercontent.com/EraylsonGaldino/dataset_time_series/master/{serie_name}.txt'
 print('Série:', serie_name)
 dados = pd.read_csv(caminho, delimiter=' ', header=None)
 
 serie = dados[0].values
 serie_normalizada = normalise(serie)
-p_tr = 0.50 #50% treinamento
-p_val1 = 0.10 #10% val1: gridsearch
-p_val2 = 0.15 #15% val2: select k 
+p_tr = 0.75 #75% treinamento
 
 
-train, val1, val2, test = split_train_val_test(serie_normalizada, p_tr, p_val1, p_val2)
+
+train, test = split_train_val_test(serie_normalizada, p_tr)
 #train, test = split_serie_less_lags(serie_normalizada, 0.75)
 #no bagging é validação é selecionada após a remostragem. por isso, junta o train e val1 
-train = np.hstack([train, val1])
+
 
 max_lag = 20
 lags_acf = select_lag_acf(serie_normalizada, max_lag)
 max_sel_lag = lags_acf[0]
 train_lags = create_windows(train, max_sel_lag+1)
 test_lags = create_windows(test, max_sel_lag+1)
-tam_val = len(val1)
 
 X_train, y_train = train_lags[:, 0:-1], train_lags[:, -1]
-ensemble = bagging(10, X_train, y_train, lags_acf)
-
+ensemble = bagging(100, X_train, y_train, lags_acf)
+x_test, y_test = test_lags[:, 0:-1], test_lags[:, -1]
+desempenho_media_pool(ensemble['models'], x_test[:, lags_acf], y_test)
 ensemble_condig = {'ensemble': ensemble['models'], 'acf': lags_acf}
 nome_arquivo = 'models\\'+serie_name+'_svr_pool.pkl'
 pickle.dump( ensemble_condig, open( nome_arquivo, "wb" ), protocol=pickle.HIGHEST_PROTOCOL )

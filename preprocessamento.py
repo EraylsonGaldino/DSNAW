@@ -88,10 +88,7 @@ def create_windows(serie,tam_janela):
         janelas_np = np.vstack((janelas_np, j_np))
     
     
-    janela = list(serie[i+1:tam_serie])
     
-    j_np = np.array(np.transpose(janela)) 
-    janelas_np = np.vstack((janelas_np, j_np))
     return janelas_np
 
 
@@ -99,8 +96,7 @@ def select_lag_acf(serie, max_lag):
     from statsmodels.tsa.stattools import acf
     x = serie[0: max_lag+1]
     
-    acf_x, confint = acf(serie, nlags=max_lag, alpha=.05, fft=False,
-                             unbiased=False)
+    acf_x, confint = acf(serie, nlags=max_lag, alpha=.05)
     
     
     limiar_superior = confint[:, 1] - acf_x
